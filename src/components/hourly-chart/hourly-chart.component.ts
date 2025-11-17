@@ -1,5 +1,4 @@
-
-import { Component, ChangeDetectionStrategy, input, effect, viewChild, ElementRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, effect, viewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { Device } from '../../models/device.model';
 
 declare var d3: any;
@@ -9,23 +8,39 @@ declare var d3: any;
   templateUrl: './hourly-chart.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HourlyChartComponent {
+export class HourlyChartComponent implements AfterViewInit, OnDestroy {
   device = input<Device | null>();
-  chartContainer = viewChild<ElementRef>('chart');
+  chartContainer = viewChild.required<ElementRef>('chart');
+  private resizeObserver?: ResizeObserver;
 
   constructor() {
     effect(() => {
       const currentDevice = this.device();
-      const container = this.chartContainer();
-      if (currentDevice && container) {
+      if (currentDevice && this.chartContainer()) {
         this.createChart(currentDevice.hourlyHistoryKWh);
       }
     });
   }
 
+  ngAfterViewInit(): void {
+    this.resizeObserver = new ResizeObserver(() => {
+        const currentDevice = this.device();
+        if (currentDevice) {
+            this.createChart(currentDevice.hourlyHistoryKWh);
+        }
+    });
+    this.resizeObserver.observe(this.chartContainer().nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
   private createChart(data: number[]): void {
-    const element = this.chartContainer()!.nativeElement;
+    const element = this.chartContainer().nativeElement;
     d3.select(element).selectAll('*').remove();
+
+    if (!element.clientWidth) return;
 
     const margin = { top: 20, right: 20, bottom: 40, left: 40 };
     const width = element.clientWidth - margin.left - margin.right;
@@ -37,83 +52,91 @@ export class HourlyChartComponent {
       .attr('height', height + margin.top + margin.bottom)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
+    
+    const defs = svg.append('defs');
+    const gradient = defs.append('linearGradient')
+      .attr('id', 'bar-gradient')
+      .attr('gradientTransform', 'rotate(90)');
+    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#67e8f9');
+    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#22d3ee');
 
     const x = d3.scaleBand()
-      .domain(d3.range(data.length))
+      .domain(d3.range(data.length).map(String))
       .range([0, width])
-      .padding(0.2);
+      .padding(0.3);
 
     const y = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: number) => d) * 1.2 || 0.1])
+      .domain([0, d3.max(data) * 1.2 || 0.1])
       .range([height, 0]);
 
-    // X Axis
     svg.append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(x).tickFormat((d: number) => (d % 6 === 0 ? `${d}:00` : '')).tickSize(0).tickPadding(10))
+      .call(d3.axisBottom(x).tickFormat((d: string, i: number) => (i % 6 === 0 ? `${i}:00` : '')).tickSize(0).tickPadding(10))
       .selectAll('text')
       .style('fill', '#94a3b8');
-      
-    svg.selectAll(".domain").remove();
+    svg.selectAll('.domain').remove();
 
-    // Y Axis
     svg.append('g')
       .call(d3.axisLeft(y).ticks(5).tickSize(-width))
       .selectAll('text')
       .style('fill', '#94a3b8');
+    svg.selectAll('.tick line').style('stroke', '#475569').style('stroke-dasharray', '2,2');
+    svg.selectAll('.domain').remove();
 
-    svg.selectAll(".tick line").style("stroke", "#475569");
-    svg.selectAll(".domain").remove();
-
-    // Tooltip
     const tooltip = d3.select(element)
       .append("div")
       .style("opacity", 0)
-      .attr("class", "absolute bg-slate-900 border border-slate-700 text-white px-3 py-1.5 rounded-md text-sm pointer-events-none")
-      .style("transform", "translate(-50%, -100%)");
+      .attr("class", "absolute bg-slate-950 border border-slate-700 text-white px-3 py-1.5 rounded-md text-sm pointer-events-none shadow-lg")
+      .style("transform", "translate(-50%, -110%)");
 
-    // Bars
-    svg.selectAll('rect')
+    svg.selectAll('.bar')
       .data(data)
       .enter()
       .append('rect')
-      .attr('x', (d: number, i: number) => x(i))
-      .attr('y', (d: number) => y(d))
+      .attr('class', 'bar')
+      .attr('x', (d: number, i: number) => x(String(i)))
       .attr('width', x.bandwidth())
-      .attr('height', (d: number) => height - y(d))
-      .attr('fill', '#22d3ee')
-      .attr('rx', 2)
-      .on('mouseover', (event: any, d: number) => {
-        d3.select(event.currentTarget).style('fill', '#67e8f9');
+      .attr('y', y(0))
+      .attr('height', 0)
+      .attr('fill', 'url(#bar-gradient)')
+      .attr('rx', 3)
+      .attr('ry', 3)
+      .on('mouseover', function(event: any) {
+        d3.select(this).style('fill', '#a5f3fc');
         tooltip.style('opacity', 1);
       })
       .on('mousemove', (event: any, d: number) => {
         const [xPos, yPos] = d3.pointer(event, element);
         tooltip
-          .html(`${d.toFixed(3)} kWh`)
+          .html(`<strong>${d.toFixed(3)} kWh</strong>`)
           .style('left', `${xPos}px`)
-          .style('top', `${yPos - 10}px`);
+          .style('top', `${yPos}px`);
       })
-      .on('mouseout', (event: any, d: number) => {
-        d3.select(event.currentTarget).style('fill', '#22d3ee');
+      .on('mouseout', function() {
+        d3.select(this).style('fill', 'url(#bar-gradient)');
         tooltip.style('opacity', 0);
-      });
+      })
+      .transition()
+      .duration(800)
+      .delay((d: number, i: number) => i * 15)
+      .attr('y', (d: number) => y(d))
+      .attr('height', (d: number) => height - y(d));
       
-      svg.append('text')
-        .attr('text-anchor', 'end')
-        .attr('x', width)
-        .attr('y', height + 35)
-        .style('fill', '#94a3b8')
-        .style('font-size', '12px')
-        .text('Hora del día');
+    svg.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('x', width / 2)
+      .attr('y', height + 38)
+      .style('fill', '#94a3b8')
+      .style('font-size', '12px')
+      .text('Hora del día');
 
-      svg.append('text')
-        .attr('text-anchor', 'start')
-        .attr('transform', 'rotate(-90)')
-        .attr('y', -margin.left + 15)
-        .attr('x', -margin.top + 10)
-        .style('fill', '#94a3b8')
-        .style('font-size', '12px')
-        .text('Consumo (kWh)');
+    svg.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('transform', 'rotate(-90)')
+      .attr('y', -margin.left + 12)
+      .attr('x', -height / 2)
+      .style('fill', '#94a3b8')
+      .style('font-size', '12px')
+      .text('Consumo (kWh)');
   }
 }

@@ -1,13 +1,13 @@
-
 import { Component, ChangeDetectionStrategy, input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Device } from '../../models/device.model';
+import { SparklineChartComponent } from '../sparkline-chart/sparkline-chart.component';
 
 @Component({
   selector: 'app-device-card',
   templateUrl: './device-card.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [CommonModule, SparklineChartComponent],
   host: {
     '[class.border-cyan-400]': 'isSelected()',
     '[class.border-transparent]': '!isSelected()',
