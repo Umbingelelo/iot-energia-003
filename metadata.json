@@ -1,0 +1,5 @@
+{
+  "name": "IoT Energy Dashboard",
+  "description": "A modern and visually appealing dashboard to monitor and analyze energy consumption from various smart home devices. It features real-time data, historical usage charts, and device status indicators.",
+  "requestFramePermissions": []
+}

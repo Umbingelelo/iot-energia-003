@@ -1,0 +1,34 @@
+
+<div class="min-h-screen bg-slate-900 flex flex-col">
+  <app-navbar></app-navbar>
+  <main class="flex-grow p-4 sm:p-6 md:p-8 space-y-8">
+    <header>
+      <h1 class="text-3xl font-bold text-white">Dashboard de Consumo</h1>
+      <p class="text-slate-400 mt-1">Monitorización en tiempo real de tus dispositivos.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2">
+        <app-device-grid 
+          [devices]="allDevices()" 
+          [selectedDeviceId]="selectedDevice()?.deviceId"
+          (deviceSelected)="handleDeviceSelection($event)">
+        </app-device-grid>
+      </div>
+
+      <div class="lg:col-span-1">
+        @if (selectedDevice(); as device) {
+          <div class="bg-slate-800 rounded-xl shadow-lg p-6 sticky top-8">
+            <h2 class="text-2xl font-semibold text-white mb-1">{{ device.deviceName }}</h2>
+            <p class="text-slate-400 mb-4">Análisis de consumo últimas 24 horas</p>
+            <app-hourly-chart [device]="device"></app-hourly-chart>
+          </div>
+        } @else {
+          <div class="bg-slate-800 rounded-xl shadow-lg p-6 h-full flex items-center justify-center">
+            <p class="text-slate-500">Selecciona un dispositivo para ver su historial.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </main>
+</div>

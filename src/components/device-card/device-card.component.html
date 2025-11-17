@@ -1,0 +1,28 @@
+
+<div class="bg-slate-700/50 p-4 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors duration-200 h-full flex flex-col justify-between">
+  <div>
+    <div class="flex justify-between items-start">
+      <div class="flex items-center space-x-3">
+        <div class="bg-slate-800 p-2 rounded-full">
+          <svg class="w-6 h-6 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" [innerHTML]="device().icon"></svg>
+        </div>
+        <h3 class="font-bold text-lg text-white">{{ device().deviceName }}</h3>
+      </div>
+      <div class="flex items-center space-x-2 text-xs">
+        <span class="w-2.5 h-2.5 rounded-full" [class]="statusColorClass()"></span>
+        <span class="text-slate-300">{{ statusText() }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 pt-4 border-t border-slate-600/50 flex justify-between items-baseline">
+    <div>
+      <p class="text-sm text-slate-400">Consumo Actual</p>
+      <p class="text-2xl font-semibold text-white">{{ device().currentWattage }} <span class="text-base font-normal text-slate-400">W</span></p>
+    </div>
+    <div class="text-right">
+      <p class="text-sm text-slate-400">Hoy</p>
+      <p class="text-lg font-medium text-cyan-400">{{ device().todayKWh }} <span class="text-sm font-normal text-slate-400">kWh</span></p>
+    </div>
+  </div>
+</div>
